@@ -227,7 +227,7 @@ While both of the above testing methods can be written natively, there exist sev
 
 Sam Hogarth's (@sh1989) [article](http://blog.scottlogic.com/2018/01/16/evaluating-redux-saga-test-libraries.html) summarizes the different options well.
 
-For testing each generator yield step-by-step there is [`redux-saga-test`][1] and [`redux-saga-testing`][2]. [`redux-saga-test-engine`][3] is for recording and testing for specific side effects. For an integration test, [`redux-saga-tester`][4]. And [`redux-saga-test-plan`][5] can actually cover all three bases.
+For testing each generator yield step-by-step there is [`redux-saga-test`][1] and [`redux-saga-testing`][2]. [`redux-saga-test-engine`][3] and [`redux-saga-testable`][6] are for recording and testing for specific side effects. For an integration test, [`redux-saga-tester`][4]. And [`redux-saga-test-plan`][5] can actually cover all three bases.
 
 ### `redux-saga-test` and `redux-saga-testing` for step-by-step testing
 
@@ -376,6 +376,48 @@ test('testing with redux-saga-test-engine', () => {
 });
 ```
 
+### redux-saga-testable
+
+This one is a library inspired by both `redux-saga-test-engine` and `redux-saga-test-plan`.
+
+It allows to record effects and offers built-in assertions by providing a function `createRunner` that exposes an API allowing to do that.
+
+```javascript
+import { createRunner, throwError } from 'redux-saga-testable';
+
+test('test success case with redux-saga-testable', () => {
+  createRunner(callApi, 'url')
+    .map(select(somethingFromState), selectedValue)
+    .map(call(myApi, 'url', selectedValue), response)
+    .should.put(success(response.json()));
+});
+
+test('test error case with redux-saga-testable', () => {
+  const httpError = new Error('Network error');
+
+  createRunner(callApi, 'url')
+    .map(select(somethingFromState), selectedValue)
+    .map(call(myApi, 'url', selectedValue), throwError(httpError))
+    .should.put(error(httpError))
+    .should.return(-1);
+});
+```
+
+It remains possible to manually assert step-by-step the exact order of the produced effects:
+
+```javascript
+test('record effects with redux-saga-testable', () => {
+  const output = createRunner(callApi, 'url')
+    .map(select(somethingFromState), selectedValue)
+    .map(call(myApi, 'url', selectedValue), response)
+    .run();
+
+  // assert the exact order of the produced effects
+  assert.deepEqual(output.effects[1], call(myApi, 'url', selectedValue));
+  assert.deepEqual(output.effects[2], put(success(response.json())));
+})
+```
+
 ### redux-saga-tester
 
 A final library to consider for integration testing. this library provides a `sagaTester` class, to which you instantiate with your store's initial state and your reducer.
@@ -472,3 +514,4 @@ test('effectMiddleware', assert => {
  [3]: https://github.com/DNAinfo/redux-saga-test-engine
  [4]: https://github.com/wix/redux-saga-tester
  [5]: https://github.com/jfairbank/redux-saga-test-plan
+ [6]: https://github.com/jeromeludmann/redux-saga-testable
